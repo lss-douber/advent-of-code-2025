@@ -1,47 +1,84 @@
+//#region
 import { readFileFromPath } from "./utils/functions";
 
 type TDialRotation = `${"L" | "R"}${number}`;
+interface IDialer {
+  currPos: number;
+  howManyTimesItStopsAtZero: number;
+  howManyTimesItLoopsThroughZero: number;
+}
 
 const input: TDialRotation[] = (await readFileFromPath("./src/inputs/day1.txt"))
   .replaceAll("\r\n", "\n")
   .split("\n") as TDialRotation[];
+
 const dial = Array.from({ length: 100 }).map((_, idx) => idx);
+//#endregion
 
-class Dialer {
-  public arr: number[];
-  public position: number;
-
-  public constructor(arr: number[], position: number) {
-    this.arr = arr;
-    this.position = position;
-  }
-
-  dial(rotation: TDialRotation) {
+const dialedInput = input.reduce<IDialer>(
+  (acc, rotation, idx) => {
     const rotationNumber = rotation.startsWith("L")
       ? -+rotation.slice(1)
       : +rotation.slice(1);
 
-    const diff = this.position + rotationNumber;
+    const endPosition = acc.currPos + rotationNumber;
 
-    if (diff < 0) {
-      return new Dialer(
-        this.arr,
-        this.arr[
-          (this.arr.length + (diff % this.arr.length)) % this.arr.length
-        ]!
+    let loopsThroughZero = 0;
+
+    //TODO - É basicamente calcular o quanto é necessário da posição atual até a final
+    // para passar pelo zero (L = currPos + 1, R = dial.length - currPos + 1 ) e dividir
+    // esse número pelo dial.length
+    if (endPosition < 0 || endPosition >= dial.length) {
+      const necessaryRotationsToPassThroughZero = rotation.startsWith("L")
+        ? acc.currPos + 1
+        : dial.length - acc.currPos + 1;
+      const countLoops = Math.abs(
+        Math.floor(necessaryRotationsToPassThroughZero / dial.length)
       );
+
+      // const countLoops = Math.abs(Math.floor(endPosition / acc.currPos));
+
+      if (!Number.isNaN(countLoops) && Number.isFinite(countLoops))
+        loopsThroughZero = countLoops;
     }
 
-    return new Dialer(this.arr, this.arr[(diff % this.arr.length) as number]!);
-  }
-}
+    const newAcc = {
+      currPos:
+        dial[
+          endPosition < 0
+            ? (dial.length + (endPosition % dial.length)) % dial.length
+            : endPosition % dial.length
+        ]!,
+      howManyTimesItStopsAtZero:
+        acc.currPos === 0
+          ? acc.howManyTimesItStopsAtZero + 1
+          : acc.howManyTimesItStopsAtZero,
+      howManyTimesItLoopsThroughZero:
+        acc.howManyTimesItLoopsThroughZero + loopsThroughZero,
+    };
 
-const dialer = new Dialer(dial, 50);
-const zeros: number[] = [];
+    if (loopsThroughZero > 3)
+      console.log({
+        acc,
+        rotation: {
+          rotation,
+          endPosition,
+          loopsThroughZero,
+        },
+        newAcc,
+      });
 
-input.reduce<Dialer>((acc, curr, idx) => {
-  acc.position === 0 && zeros.push(acc.position);
-  return acc.dial(curr);
-}, dialer);
+    return newAcc;
+  },
+  {
+    currPos: dial[50]!,
+    howManyTimesItStopsAtZero: 0,
+    howManyTimesItLoopsThroughZero: 0,
+  } as const
+);
 
-console.log(zeros.length);
+console.log(dialedInput);
+console.log(
+  dialedInput.howManyTimesItLoopsThroughZero +
+    dialedInput.howManyTimesItStopsAtZero
+);
